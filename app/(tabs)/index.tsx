@@ -1,74 +1,138 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import React, { useEffect, useCallback } from 'react';
+import { StyleSheet, FlatList, ActivityIndicator, View, Text, RefreshControl, Platform, Button } from 'react-native';
+import { useJobs } from '../context/JobContext';
+import JobCard from '../../components/JobCard';
+import Colors from '../../constants/Colors';
+import { useColorScheme } from 'react-native';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+export default function JobsScreen() {
+  const { 
+    jobs, 
+    loading, 
+    error, 
+    fetchJobs, 
+    fetchNextPage, 
+    hasMoreJobs 
+  } = useJobs();
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? 'light'];
 
-export default function HomeScreen() {
+  useEffect(() => {
+    fetchJobs();
+  }, []);
+
+  const renderFooter = () => {
+    if (!loading) return null;
+    
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="large" color={colors.tint} />
+      </View>
+    );
+  };
+
+  const handleLoadMore = useCallback(() => {
+    if (!loading && hasMoreJobs) {
+      fetchNextPage();
+    }
+  }, [loading, hasMoreJobs, fetchNextPage]);
+
+  const handleRefresh = useCallback(() => {
+    fetchJobs(true);
+  }, [fetchJobs]);
+
+  if (loading && jobs.length === 0) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color={colors.tint} />
+        <Text style={styles.loadingText}>Loading jobs...</Text>
+      </View>
+    );
+  }
+
+  if (error && jobs.length === 0) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Text style={styles.errorText}>Error: {error}</Text>
+        <Text style={styles.retry} onPress={handleRefresh}>
+          Tap to retry
+        </Text>
+      </View>
+    );
+  }
+
+  if (jobs.length === 0) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Text style={styles.emptyText}>No jobs found</Text>
+        <Text style={styles.retry} onPress={handleRefresh}>
+          Tap to refresh
+        </Text>
+      </View>
+    );
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12'
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <FlatList
+        data={jobs}
+        renderItem={({ item }) => <JobCard job={item} />}
+        keyExtractor={(item) => {
+          if (item && item.id !== undefined) {
+            return item.id.toString();
+          }
+          return Math.random().toString(36).substring(2, 15);
+        }}
+        contentContainerStyle={styles.listContent}
+        ListFooterComponent={renderFooter}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.3}
+        refreshControl={
+          <RefreshControl refreshing={loading && jobs.length > 0} onRefresh={handleRefresh} />
+        }
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
+  container: {
+    flex: 1,
+  },
+  centered: {
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    padding: 20,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  listContent: {
+    padding: 16,
+    paddingBottom: Platform.OS === 'ios' ? 50 : 16,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  footerLoader: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#ff3b30',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#8e8e93',
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  retry: {
+    fontSize: 16,
+    color: '#007aff',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#8e8e93',
+    textAlign: 'center',
   },
 });

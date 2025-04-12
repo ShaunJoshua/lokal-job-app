@@ -3,8 +3,8 @@
  * https://docs.expo.dev/guides/color-schemes/
  */
 
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import Colors from '../constants/Colors';
+import { useColorScheme } from './useColorScheme';
 
 export function useThemeColor(
   props: { light?: string; dark?: string },
@@ -16,6 +16,11 @@ export function useThemeColor(
   if (colorFromProps) {
     return colorFromProps;
   } else {
-    return Colors[theme][colorName];
+    // Ensure the colorName exists in the current theme
+    if (Colors[theme] && Colors[theme][colorName]) {
+      return Colors[theme][colorName];
+    }
+    // Fallback to light theme if color doesn't exist in current theme
+    return Colors.light[colorName] || '#FFFFFF';
   }
 }
